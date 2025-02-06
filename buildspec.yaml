@@ -14,7 +14,7 @@ phases:
        - echo Build completed on `date`
        - echo Pushing the Docker image...
        - docker push $ECR_URI:$IMAGE_TAG
-       - printf '[{"name":"solana","imageUri":"%s"}]' $ECR_URI:$IMAGE_TAG > imageDefinitions.json 
+       - printf '[{"name":"cloudologic","imageUri":"%s"}]' $ECR_URI:$IMAGE_TAG > imageDefinitions.json 
        - cat imageDefinitions.json
 artifacts:
      files:
