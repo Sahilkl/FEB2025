@@ -1,0 +1,47 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - aws --version
+      - docker --version
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URI
+      
+      # Authenticate with Docker Hub to avoid pull rate limits
+      - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+      
+      # Check directory contents before build
+      - echo "Checking directory contents before build..."
+      - ls -R
+  
+  build:
+    commands:
+      - echo "Build started on $(date)"
+      - echo "Building the Docker image..."
+      - ls -la  # Debug: Verify Dockerfile exists
+      - cat Dockerfile || echo "Dockerfile not found!"
+      
+      # Use ECR-cached Ubuntu base image
+      - docker pull public.ecr.aws/ubuntu/ubuntu:latest
+      - docker tag public.ecr.aws/ubuntu/ubuntu:latest $ECR_URI:$IMAGE_TAG
+      
+      - docker build --pull --no-cache -t $ECR_URI:$IMAGE_TAG .
+      - docker tag $ECR_URI:$IMAGE_TAG $ECR_URI:latest
+
+  post_build:
+    commands:
+      - echo "Build completed on $(date)"
+      - echo "Pushing the Docker image..."
+      - docker push $ECR_URI:$IMAGE_TAG
+      - docker push $ECR_URI:latest
+      - echo "Creating image definitions JSON file..."
+      - echo '[{"name":"cloudologic","imageUri":"'$ECR_URI:$IMAGE_TAG'"}]' > imageDefinitions.json
+      - cat imageDefinitions.json
+
+artifacts:
+  files:
+    - imageDefinitions.json
+    - appspec.yaml
+    - buildspec.yml
+    - Dockerfile
