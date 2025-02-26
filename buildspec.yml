@@ -14,12 +14,12 @@ phases:
     commands:
       - echo "Build started on $(date)"
       - echo "Building the Docker image..."
-      - ls -la   # Verify Dockerfile exists
+      - ls -la  # Debug: Verify Dockerfile exists
       - cat Dockerfile || echo "Dockerfile not found!"
       - docker build -t $ECR_URI:$IMAGE_TAG .
       - docker tag $ECR_URI:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
 
-  post_build
+  post_build:
     commands:
       - echo "Build completed on $(date)"
       - echo "Pushing the Docker image..."
