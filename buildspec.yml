@@ -3,53 +3,41 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - echo "===== AWS & Docker Versions ====="
       - aws --version
       - docker --version
-
-      - echo "===== Checking Environment Variables ====="
-      - echo "ECR_URI: $ECR_URI"
-      - echo "IMAGE_TAG: $IMAGE_TAG"
-      - echo "DOCKER_HUB_USERNAME: $DOCKER_HUB_USERNAME"
-      - echo "DOCKER_HUB_PASSWORD length: ${#DOCKER_HUB_PASSWORD}"
-
-      - echo "===== Logging in to Amazon ECR ====="
-      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URI || { echo "ECR Login Failed"; exit 1; }
-
-      - echo "===== Logging in to Docker Hub ====="
-      - echo -n "$DOCKER_HUB_PASSWORD" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin || { echo "Docker Hub Login Failed"; exit 1; }
-
-      - echo "===== Checking Directory Contents ====="
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URI
+      
+      # Authenticate with Docker Hub to avoid pull rate limits
+      - echo "Logging into Docker Hub..."
+      - echo "$DOCKER_HUB_PASSWORD" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin || echo "Docker Hub login failed"
+      
+      # Check directory contents before build
+      - echo "Checking directory contents before build..."
       - ls -R
-
+  
   build:
     commands:
-      - echo "===== Build Started on $(date) ====="
-      - echo "===== Checking for Dockerfile ====="
-      - if [ ! -f Dockerfile ]; then echo "Error: Dockerfile not found!"; exit 1; fi
-      - cat Dockerfile
+      - echo "Build started on $(date)"
+      - echo "Building the Docker image..."
+      - ls -la  # Debug: Verify Dockerfile exists
+      - cat Dockerfile || echo "Dockerfile not found!"
 
-      - echo "===== Pulling Base Image from ECR ====="
-      - docker pull public.ecr.aws/ubuntu/ubuntu:latest || { echo "Failed to pull base image"; exit 1; }
-
-      - echo "===== Tagging Base Image ====="
-      - docker tag public.ecr.aws/ubuntu/ubuntu:latest $ECR_URI:$IMAGE_TAG
-
-      - echo "===== Building Docker Image ====="
-      - docker build --pull --no-cache -t $ECR_URI:$IMAGE_TAG . || { echo "Docker Build Failed"; exit 1; }
-
-      - echo "===== Tagging Image for Latest ====="
+      # Use ECR-cached Ubuntu base image
+      - docker pull public.ecr.aws/ubuntu/ubuntu:latest
+      - docker tag public.ecr.aws/ubuntu/ubuntu:latest $ECR_URI:$IMAGE_TAG || echo "Docker tag command failed"
+      
+      - docker build --pull --no-cache -t $ECR_URI:$IMAGE_TAG .
       - docker tag $ECR_URI:$IMAGE_TAG $ECR_URI:latest
 
   post_build:
     commands:
-      - echo "===== Build Completed on $(date) ====="
-      - echo "===== Pushing Docker Images ====="
-      - docker push $ECR_URI:$IMAGE_TAG || { echo "Failed to push image: $IMAGE_TAG"; exit 1; }
-      - docker push $ECR_URI:latest || { echo "Failed to push image: latest"; exit 1; }
-
-      - echo "===== Creating Image Definition JSON ====="
-      - echo '[{"name":"cloudologic","imageUri":"'$ECR_URI:$IMAGE_TAG'"}]' > imageDefinitions.json
+      - echo "Build completed on $(date)"
+      - echo "Pushing the Docker image..."
+      - docker push $ECR_URI:$IMAGE_TAG
+      - docker push $ECR_URI:latest
+      - echo "Creating image definitions JSON file..."
+      - echo '[{"name":"cloudologic","imageUri":"'$ECR_URI':'$IMAGE_TAG'"}]' > imageDefinitions.json
       - cat imageDefinitions.json
 
 artifacts:
