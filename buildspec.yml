@@ -29,3 +29,4 @@ artifacts:
     - imageDefinitions.json
     - appspec.yaml
     - buildspec.yml
+    - Dockerfile
