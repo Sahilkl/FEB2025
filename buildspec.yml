@@ -1,0 +1,35 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - aws --version
+      - docker --version
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URI
+      - echo "Checking directory contents before build..."
+      - ls -R
+
+  build:
+    commands:
+      - echo "Build started on $(date)"
+      - echo "Building the Docker image..."
+      - ls -la   # Verify Dockerfile exists
+      - cat Dockerfile || echo "Dockerfile not found!"
+      - docker build -t $ECR_URI:$IMAGE_TAG .
+      - docker tag $ECR_URI:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
+
+  post_build
+    commands:
+      - echo "Build completed on $(date)"
+      - echo "Pushing the Docker image..."
+      - docker push $ECR_URI:$IMAGE_TAG
+      - echo "Creating image definitions JSON file..."
+      - echo '[{"name":"cloudologic","imageUri":"'$ECR_URI:$IMAGE_TAG'"}]' > imageDefinitions.json
+      - cat imageDefinitions.json
+
+artifacts:
+  files:
+    - imageDefinitions.json
+    - appspec.yaml
+    - buildspec.yml
