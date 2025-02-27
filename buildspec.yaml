@@ -1,25 +1,36 @@
 version: 0.2
+
+env:
+  variables:
+    IMAGE_TAG: "latest"                # Default image tag
+    ECR_URI: "211125410654.dkr.ecr.us-east-1.amazonaws.com/sahil"
+
 phases:
   pre_build:
-     commands:
-       # - echo Logging in to DockerHub...
-       # - echo $DOCKERHUB_PASSWORD | docker login --username $DOCKERHUB_USERNAME --password-stdin
-       - echo Logging in to Amazon ECR...
-       - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URI
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URI
+      - echo "Pre-build phase completed."
+
   build:
-     commands:
-       - echo Build started on `date`
-       - echo Building the Docker image...
-       - docker build -t $ECR_URI:$IMAGE_TAG .
+    commands:
+      - echo "Build started on $(date)"
+      - echo "Building the Docker image..."
+      - docker build -t $ECR_URI:$IMAGE_TAG .
+      - echo "Docker build completed."
+
   post_build:
-     commands:
-       - echo Build completed on `date`
-       - echo Pushing the Docker image...
-       - docker push $ECR_URI:$IMAGE_TAG
-       - printf '[{"name":"cloudologic","imageUri":"%s"}]' $ECR_URI:$IMAGE_TAG > imageDefinitions.json 
-       - cat imageDefinitions.json
+    commands:
+      - echo "Build completed on $(date)"
+      - echo "Pushing the Docker image..."
+      - docker push $ECR_URI:$IMAGE_TAG
+      - echo "Docker push completed."
+      - echo "Creating image definitions file..."
+      - printf '[{"name":"cloudologic","imageUri":"%s"}]' "$ECR_URI:$IMAGE_TAG" > imageDefinitions.json
+      - cat imageDefinitions.json
+      - echo "Post-build phase completed."
+
 artifacts:
-     files:
-       - imageDefinitions.json
-       - appspec.yml
-      
+  files:
+    - imageDefinitions.json
+  discard-paths: yes
